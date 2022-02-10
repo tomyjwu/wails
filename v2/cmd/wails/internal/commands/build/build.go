@@ -86,6 +86,9 @@ func AddBuildSubcommand(app *clir.Cli, w io.Writer) {
 	debug := false
 	command.BoolFlag("debug", "Retains debug data in the compiled application", &debug)
 
+	nsis := false
+	command.BoolFlag("nsis", "Generate NSIS installer for Windows", &debug)
+
 	command.Action(func() error {
 
 		quiet := verbosity == 0
@@ -223,6 +226,8 @@ func AddBuildSubcommand(app *clir.Cli, w io.Writer) {
 			"windows/arm64",
 		})
 
+		outputBinaries := map[string]string{}
+
 		targets.Each(func(platform string) {
 
 			if !validPlatformArch.Contains(platform) {
@@ -289,14 +294,31 @@ func AddBuildSubcommand(app *clir.Cli, w io.Writer) {
 				logger.Println("Error: ", err.Error())
 				return
 			}
+
+			outputBinaries[platform] = buildOptions.OutputFile
+
 			buildOptions.IgnoreFrontend = true
 
 			// Output stats
 			buildOptions.Logger.Println(fmt.Sprintf("Built '%s' in %s.\n", outputFilename, time.Since(start).Round(time.Millisecond).String()))
 
 		})
+
+		if nsis {
+			amd64Binary := outputBinaries["windows/amd64"]
+			arm64Binary := outputBinaries["windows/arm64"]
+			if amd64Binary == "" && arm64Binary == "" {
+				return fmt.Errorf("cannot build nsis installer - no windows targets")
+			}
+			err = generateNSISInstaller(amd64Binary, arm64Binary)
+		}
 		return nil
 	})
+}
+
+func generateNSISInstaller(amd64Binary string, arm64Binary string) error {
+	// TODO
+	return nil
 }
 
 func checkGoModVersion(logger *clilogger.CLILogger, updateGoMod bool) error {
